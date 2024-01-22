@@ -31,18 +31,7 @@ const getUserWithEmail = function (email) {
       return null;
     });
 };
-/*
-const getUserWithEmail = function (email) {
-  let resolvedUser = null;
-  for (const userId in users) {
-    const user = users[userId];
-    if (user && user.email.toLowerCase() === email.toLowerCase()) {
-      resolvedUser = user;
-    }
-  }
-  return Promise.resolve(resolvedUser);
-};
-*/
+
 
 /**
  * Get a single user from the database given their id.
@@ -63,9 +52,7 @@ const getUserWithId = function (id) {
       return null;
     });
 };
-// const getUserWithId = function (id) {
-//   return Promise.resolve(users[id]);
-// };
+
 
 /**
  * Add a new user to the database.
@@ -75,8 +62,6 @@ const getUserWithId = function (id) {
 
 const addUser = function (user) {
   const { name, email, password } = user;
-  console.log('SQL Query:', `INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *`);
-
   return pool
     .query(
       `INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *`,
@@ -90,12 +75,7 @@ const addUser = function (user) {
       return null;
     });
 };
-// const addUser = function (user) {
-//   const userId = Object.keys(users).length + 1;
-//   user.id = userId;
-//   users[userId] = user;
-//   return Promise.resolve(user);
-// };
+
 
 /// Reservations
 
@@ -105,8 +85,30 @@ const addUser = function (user) {
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function (guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  return pool
+    .query(
+      `SELECT reservations.*, properties.title, properties.cost_per_night, properties.thumbnail_photo_url,
+              properties.number_of_bedrooms, properties.number_of_bathrooms,
+              properties.parking_spaces, properties.country, properties.street,
+              properties.city, properties.province, properties.post_code,
+              avg(property_reviews.rating) as average_rating
+      FROM reservations
+      JOIN properties ON reservations.property_id = properties.id
+      LEFT JOIN property_reviews ON properties.id = property_reviews.property_id
+      WHERE reservations.guest_id = $1
+      GROUP BY reservations.id, properties.id
+      ORDER BY reservations.start_date
+      LIMIT $2`,
+      [guest_id, limit])
+    .then((result) => {
+      console.log(result.rows);
+      return result.rows;
+    })
+    .catch((err) => {
+      console.error(err.message);
+    });
 };
+
 
 /// Properties
 
