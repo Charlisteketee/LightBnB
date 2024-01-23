@@ -86,6 +86,8 @@ const addUser = function (user) {
  */
 const getAllReservations = function (guest_id, limit = 10) {
   return pool
+  // LEFT JOIN to include properties without reviews!
+  // SELECT all columns from the 'reservations' table by using reservation.*
     .query(
       `SELECT reservations.*, properties.title, properties.cost_per_night, properties.thumbnail_photo_url,
               properties.number_of_bedrooms, properties.number_of_bathrooms,
@@ -118,16 +120,67 @@ const getAllReservations = function (guest_id, limit = 10) {
  * @param {*} limit The number of results to return.
  * @return {Promise<[{}]>}  A promise to the properties.
  */
-const getAllProperties = (options, limit = 1) => {
-  return pool
-    .query(`SELECT * FROM properties LIMIT $1`, [limit])
-    .then((result) => {
-      console.log(result.rows);
-      return result.rows;
-    })
-    .catch((err) => {
-      console.log(err.message);
-    });
+
+const getAllProperties = function (options, limit = 10) {
+  // Setup an array to hold any parameters that may be available for the query.
+  const queryParams = [];
+
+  // Start the query with all information that comes before the WHERE clause.
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+
+  //   Check if a city has been passed in as an option. Add the city to the params array and create a WHERE clause for the city.
+  // We can use the length of the array to dynamically get the $n placeholder number. Since this is the first parameter, it will be $1.
+  // The % syntax for the LIKE clause must be part of the parameter, not the query.
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `WHERE city LIKE $${queryParams.length} `;
+  }
+
+  // check if a user id has been passed in as an option
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    queryString += `AND owner_id = $${queryParams.length}`;
+  }
+
+  // if a minimum_price_per_night and a maximum_price_per_night, only return properties within that price range. (* 100 for cents)
+  if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100, options.maximum_price_per_night * 100);
+    queryString += `AND cost_per_night >= $${queryParams.length} AND cost_per_night <= $${queryParams.length}`;
+  } else if (options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night * 100);
+    queryString += `AND cost_per_night >= $${queryParams.length}`;
+  } else if (options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night * 100);
+    queryString += `AND cost_per_night <= $${queryParams.length}`;
+  }
+  
+  // Add any query that comes after the WHERE clause.
+  
+  queryString += `
+  GROUP BY properties.id`
+
+  // if a minimum_rating is passed in, only return properties with an average rating equal to or higher than that.
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    queryString += `
+      HAVING avg(property_reviews.rating) >= $${queryParams.length}`;
+  }
+
+  queryParams.push(limit);
+  queryString +=
+  ` ORDER BY cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
+  //Console log everything just to make sure we've done it right.
+  console.log(queryString, queryParams);
+
+  // Run the query.
+  return pool.query(queryString, queryParams).then((res) => res.rows);
 };
 
 /**
@@ -136,11 +189,75 @@ const getAllProperties = (options, limit = 1) => {
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  const {
+    owner_id,
+    title,
+    description,
+    thumbnail_photo_url,
+    cover_photo_url,
+    cost_per_night,
+    street,
+    city,
+    province,
+    post_code,
+    country,
+    parking_spaces,
+    number_of_bathrooms,
+    number_of_bedrooms
+  } = property;
+
+  const queryParams = [
+    owner_id,
+    title,
+    description,
+    thumbnail_photo_url,
+    cover_photo_url,
+    cost_per_night,
+    street,
+    city,
+    province,
+    post_code,
+    country,
+    parking_spaces,
+    number_of_bathrooms,
+    number_of_bedrooms
+  ];
+
+  const queryString = `
+    INSERT INTO properties (
+      owner_id,
+      title,
+      description,
+      thumbnail_photo_url,
+      cover_photo_url,
+      cost_per_night,
+      street,
+      city,
+      province,
+      post_code,
+      country,
+      parking_spaces,
+      number_of_bathrooms,
+      number_of_bedrooms
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    RETURNING *;
+  `;
+
+  return pool
+    .query(queryString, queryParams)
+    .then((result) => {
+      const newProperty = result.rows[0];
+      return newProperty || null;
+    })
+    .catch((err) => {
+      console.error(err.message);
+      return null;
+    });
 };
+
+
+
 
 module.exports = {
   getUserWithEmail,
