@@ -1,5 +1,14 @@
 # LightBnB
 
+Are you looking to book a very exciting vacation to anywhere in the world including just Canada? We have houses from $2! 
+**This site is not actually able to book you vacations but you can sure have fun pretending.
+
+!["Homepage Screenshot"](/LightBnB_WebApp-master/images/home_screenshot.png)
+
+## Search parameters:
+
+!["Search bar Screenshot"](/LightBnB_WebApp-master/images/search_screenshot.png)
+
 ## Project Structure
 
 ```

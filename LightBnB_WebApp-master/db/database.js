@@ -18,7 +18,7 @@ const pool = new Pool({
  * @return {Promise<{}>} A promise to the user.
  */
 
-const getUserWithEmail = function (email) {
+const getUserWithEmail = function(email) {
   return pool
     .query(`SELECT * FROM users WHERE email = $1`, [email])
     .then((result) => {
@@ -39,7 +39,7 @@ const getUserWithEmail = function (email) {
  * @return {Promise<{}>} A promise to the user.
  */
 
-const getUserWithId = function (id) {
+const getUserWithId = function(id) {
   return pool
     .query(`SELECT * FROM users WHERE id = $1`, [id])
     .then((result) => {
@@ -60,7 +60,7 @@ const getUserWithId = function (id) {
  * @return {Promise<{}>} A promise to the user.
  */
 
-const addUser = function (user) {
+const addUser = function(user) {
   const { name, email, password } = user;
   return pool
     .query(
@@ -84,7 +84,7 @@ const addUser = function (user) {
  * @param {string} guest_id The id of the user.
  * @return {Promise<[{}]>} A promise to the reservations.
  */
-const getAllReservations = function (guest_id, limit = 10) {
+const getAllReservations = function(guest_id, limit = 10) {
   return pool
   // LEFT JOIN to include properties without reviews!
   // SELECT all columns from the 'reservations' table by using reservation.*
@@ -148,8 +148,9 @@ const getAllProperties = function (options, limit = 10) {
 
   // if a minimum_price_per_night and a maximum_price_per_night, only return properties within that price range. (* 100 for cents)
   if (options.minimum_price_per_night && options.maximum_price_per_night) {
-    queryParams.push(options.minimum_price_per_night * 100, options.maximum_price_per_night * 100);
-    queryString += `AND cost_per_night >= $${queryParams.length} AND cost_per_night <= $${queryParams.length}`;
+    queryParams.push(options.minimum_price_per_night * 100);
+    queryParams.push(options.maximum_price_per_night * 100);
+    queryString += `AND cost_per_night >= $${queryParams.length - 1} AND cost_per_night <= $${queryParams.length}`;
   } else if (options.minimum_price_per_night) {
     queryParams.push(options.minimum_price_per_night * 100);
     queryString += `AND cost_per_night >= $${queryParams.length}`;
@@ -161,7 +162,7 @@ const getAllProperties = function (options, limit = 10) {
   // Add any query that comes after the WHERE clause.
   
   queryString += `
-  GROUP BY properties.id`
+  GROUP BY properties.id`;
 
   // if a minimum_rating is passed in, only return properties with an average rating equal to or higher than that.
   if (options.minimum_rating) {
@@ -188,7 +189,7 @@ const getAllProperties = function (options, limit = 10) {
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
-const addProperty = function (property) {
+const addProperty = function(property) {
   const {
     owner_id,
     title,
